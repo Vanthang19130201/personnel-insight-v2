@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173a32">
+  <title>Thống kê nhân sự đơn vị | Personnel Insight</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="template-report.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><div class="brand-icon">✦</div><div><strong>PERSONNEL <em>INSIGHT</em></strong><small>Nhập dữ liệu · Báo cáo tự động</small></div></div>
+      <div class="sidebar-label">QUẢN LÝ</div>
+      <nav aria-label="Điều hướng">
+        <button class="nav-link active" data-page="dashboard"><span>▦</span> Tổng quan</button>
+        <button class="nav-link" data-page="people"><span>♙</span> Hồ sơ nhân sự</button>
+        <button class="nav-link" data-page="statistics"><span>◫</span> Thống kê chuyên sâu</button>
+        <button class="nav-link" data-page="source"><span>▥</span> Tổng hợp theo mẫu báo cáo</button>
+        <button class="nav-link" data-page="payroll"><span>₫</span> Quỹ lương & thu nhập</button>
+        <button class="nav-link" data-page="reports"><span>▤</span> Báo cáo & xuất dữ liệu</button>
+      </nav>
+      <div class="sidebar-label">HỆ THỐNG</div>
+      <nav aria-label="Công cụ">
+        <button class="nav-link" data-page="settings"><span>⚙</span> Thiết lập dữ liệu</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="online-dot"></div><div><b>Bản demo cá nhân</b><small>Demo ngoại tuyến · dữ liệu tự nhập</small></div></div>
+    </aside>
+    <div class="main-layout">
+      <header class="topbar"><div class="top-left"><button id="menuToggle" class="icon-btn menu-toggle" aria-label="Mở menu">☰</button><span class="crumb">Không gian quản lý</span><span class="slash">/</span><strong id="breadcrumb">Tổng quan</strong></div><div class="top-actions"><span class="header-date" id="todayLabel"></span><button class="btn btn-light btn-sm" id="logoutButton" type="button">Đăng xuất</button><span class="avatar">QT</span></div></header>
+      <main id="main" class="content" tabindex="-1"></main>
+    </div>
+  </div>
+  <div class="modal-layer hidden" id="personModal" role="presentation">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-head"><div><span class="eyebrow">HỒ SƠ NHÂN SỰ</span><h2 id="modalTitle">Thêm hồ sơ</h2></div><button class="icon-btn" id="closeModal" aria-label="Đóng">✕</button></div>
+      <form id="personForm" novalidate><div class="form-scroll"><div class="form-grid">
+        <div class="field"><label for="personCode">Mã nhân sự <b>*</b></label><input id="personCode" name="code" required maxlength="30" placeholder="NS-001"></div>
+        <div class="field"><label for="personName">Họ và tên <b>*</b></label><input id="personName" name="name" required maxlength="100" placeholder="Nguyễn Văn A"></div>
+        <div class="field"><label for="personDOB">Ngày sinh <b>*</b></label><input id="personDOB" type="date" name="dob" required></div>
+        <div class="field"><label for="personGender">Giới tính</label><select id="personGender" name="gender"><option>Nam</option><option>Nữ</option><option>Khác</option></select></div>
+        <div class="field"><label for="personGroup">Nhóm quản lý</label><select name="group" id="personGroup"><option>Tổ A</option><option>Tổ B</option><option>Tổ C</option><option>Khác</option></select></div>
+        <div class="field"><label for="personRank">Cấp bậc</label><select id="personRank" name="rank"><option value="">Chưa cập nhật</option><option>Hạ sĩ</option><option>Trung sĩ</option><option>Thượng sĩ</option><option>Thiếu úy</option><option>Trung úy</option><option>Thượng úy</option><option>Đại úy</option><option>Thiếu tá</option><option>Trung tá</option><option>Thượng tá</option><option>QNCN</option><option>Khác</option></select></div>
+        <div class="field"><label for="personPosition">Chức vụ <b>*</b></label><input id="personPosition" name="position" required maxlength="100" placeholder="Nhân viên"></div>
+        <div class="field"><label for="personEducation">Trình độ văn hóa</label><select id="personEducation" name="education"><option value="">Chưa cập nhật</option><option>12/12</option><option>11/12</option><option>10/12</option><option>9/12</option><option>Khác</option></select></div>
+        <div class="field"><label for="personQualification">Trình độ chuyên môn</label><select id="personQualification" name="qualification"><option value="">Chưa cập nhật</option><option>THPT</option><option>Trung cấp</option><option>Cao đẳng</option><option>Đại học</option><option>Sau đại học</option><option>Khác</option></select></div>
+        <div class="field"><label for="personMarriage">Tình trạng hôn nhân</label><select id="personMarriage" name="marital"><option value="">Chưa cập nhật</option><option>Chưa kết hôn</option><option>Đã kết hôn</option><option>Ly hôn</option><option>Khác</option></select></div>
+        
+        <div class="field"><label for="personCategory">Đối tượng quân nhân</label><select id="personCategory" name="category"><option value="">Chưa cập nhật</option><option>Sĩ quan</option><option>Quân nhân chuyên nghiệp</option><option>Hạ sĩ quan</option><option>Chiến sĩ</option><option>Khác</option></select></div>
+        <div class="field"><label for="personEthnicity">Dân tộc</label><input id="personEthnicity" name="ethnicity" maxlength="60" placeholder="Ví dụ: Kinh"></div>
+        <div class="field"><label for="personReligion">Tôn giáo</label><select id="personReligion" name="religion"><option value="">Chưa cập nhật</option><option>Không</option><option>Phật giáo</option><option>Công giáo</option><option>Tin lành</option><option>Khác</option></select></div>
+        <div class="field"><label for="personOrganization">Đảng / Đoàn</label><select id="personOrganization" name="organization"><option value="">Chưa cập nhật</option><option>Đảng viên</option><option>Đoàn viên</option><option>Chưa tham gia</option><option>Khác</option></select></div>
+        <div class="field"><label for="personFamily">Gia đình (chỉ phân loại chung)</label><select id="personFamily" name="family"><option value="">Chưa cập nhật</option><option>Bình thường</option><option>Hoàn cảnh khó khăn</option><option>Cần quan tâm</option><option>Khác</option></select></div>
+        <div class="field"><label for="personChildren">Số con</label><input id="personChildren" type="number" name="children" min="0" max="20" step="1" value="0"></div>
+        <div class="field"><label for="personYears">Thâm niên (năm)</label><input id="personYears" type="number" name="years" min="0" max="65" step="1" value="0"></div>
+        <div class="field"><label for="personSalary">Lương tháng (VNĐ)</label><input id="personSalary" type="number" name="salary" min="0" max="1000000000" step="1000" value="0"></div>
+        <div class="field"><label for="personAllowance">Phụ cấp tháng (VNĐ)</label><input id="personAllowance" type="number" name="allowance" min="0" max="1000000000" step="1000" value="0"></div>
+        <div class="field wide"><label for="personNote">Ghi chú chung (không nhập bí mật nghiệp vụ)</label><textarea id="personNote" name="note" rows="2" maxlength="300" placeholder="Ghi chú tùy chọn"></textarea></div>
+      </div><p class="form-help" id="formError" role="alert"></p></div><div class="modal-actions"><button type="button" class="btn btn-ghost" id="cancelModal">Hủy</button><button type="submit" class="btn btn-primary">Lưu hồ sơ</button></div></form>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
