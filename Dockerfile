@@ -10,5 +10,5 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /workspace/target/personnel-insight-1.0.0.jar app.jar
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
-EXPOSE 8080
+EXPOSE 1000
 ENTRYPOINT ["java","-jar","/app/app.jar"]
