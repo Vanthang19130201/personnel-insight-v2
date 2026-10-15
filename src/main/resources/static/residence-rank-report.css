@@ -1,0 +1,96 @@
+/* =========================================================
+   PERSONNEL INSIGHT
+   NƠI Ở HIỆN NAY + QUÂN HÀM
+========================================================= */
+
+
+/* Bảng tổng hợp */
+
+.report-summary-panel {
+  overflow: hidden;
+}
+
+
+/* Hai cột quân số */
+
+.paired-summary-table th:nth-child(2),
+.paired-summary-table th:nth-child(4),
+.paired-summary-table td:nth-child(2),
+.paired-summary-table td:nth-child(4) {
+  width: 90px;
+  text-align: center;
+}
+
+
+/* Số quân */
+
+.paired-summary-table .summary-number {
+  font-weight: 800;
+  color: #173a32;
+}
+
+
+/* Tiêu đề */
+
+.report-summary-panel h2 {
+  margin-bottom: 4px;
+}
+
+
+/* Tăng khoảng cách cho phần thống kê mới */
+
+.residence-rank-extra {
+  margin-top: 18px;
+}
+
+
+/* Không cho tên xã quá hẹp */
+
+.paired-summary-table th:nth-child(1),
+.paired-summary-table th:nth-child(3),
+.paired-summary-table td:nth-child(1),
+.paired-summary-table td:nth-child(3) {
+  min-width: 190px;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 760px) {
+
+  .paired-summary-table {
+    min-width: 650px;
+  }
+
+}
+
+
+/* =========================================================
+   PRINT
+========================================================= */
+
+@media print {
+
+  .paired-summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11pt;
+  }
+
+  .paired-summary-table th,
+  .paired-summary-table td {
+    border: 1px solid #222 !important;
+    padding: 6px 8px;
+  }
+
+  .paired-summary-table .summary-number {
+    color: #000;
+  }
+
+  .report-summary-panel {
+    break-inside: avoid;
+  }
+
+}
