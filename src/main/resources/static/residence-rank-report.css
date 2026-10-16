@@ -1,17 +1,10 @@
 /* =========================================================
-   PERSONNEL INSIGHT
-   NƠI Ở HIỆN NAY + QUÂN HÀM
+   PERSONNEL INSIGHT - CHI TIẾT THỐNG KÊ / ĐỊA CHỈ / SỨC KHỎE
 ========================================================= */
-
-
-/* Bảng tổng hợp */
 
 .report-summary-panel {
   overflow: hidden;
 }
-
-
-/* Hai cột quân số */
 
 .paired-summary-table th:nth-child(2),
 .paired-summary-table th:nth-child(4),
@@ -21,57 +14,229 @@
   text-align: center;
 }
 
-
-/* Số quân */
-
 .paired-summary-table .summary-number {
   font-weight: 800;
   color: #173a32;
 }
 
-
-/* Tiêu đề */
-
-.report-summary-panel h2 {
-  margin-bottom: 4px;
-}
-
-
-/* Tăng khoảng cách cho phần thống kê mới */
-
-.residence-rank-extra {
-  margin-top: 18px;
-}
-
-
-/* Không cho tên xã quá hẹp */
-
 .paired-summary-table th:nth-child(1),
 .paired-summary-table th:nth-child(3),
 .paired-summary-table td:nth-child(1),
 .paired-summary-table td:nth-child(3) {
-  min-width: 190px;
+  min-width: 200px;
 }
 
+[data-drill-field] {
+  cursor: pointer;
+}
+
+.chart-line[data-drill-field] {
+  border-radius: 9px;
+  transition:
+          background .16s ease,
+          transform .16s ease;
+}
+
+.chart-line[data-drill-field]:hover,
+.chart-line[data-drill-field]:focus-visible {
+  background: #f3f7f5;
+  transform: translateX(2px);
+  outline: none;
+}
+
+.paired-summary-table td[data-drill-field]:hover,
+.paired-summary-table td[data-drill-field]:focus-visible {
+  background: #eef5f2;
+  outline: none;
+}
+
+.health-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.health-ok {
+  background: #edf7f2;
+  color: #24624f;
+}
+
+.health-warning {
+  background: #fff1ef;
+  color: #9b3028;
+}
+
+.health-note-field.hidden {
+  display: none;
+}
+
+.health-text-warning {
+  display: block;
+  color: #9b3028;
+  white-space: nowrap;
+}
+
+.health-note-text {
+  display: block;
+  margin-top: 4px;
+  color: #6e7773;
+  line-height: 1.4;
+  max-width: 240px;
+}
+
+.personnel-detail-table td {
+  vertical-align: top;
+}
+
+.personnel-detail-table td:nth-child(7) {
+  min-width: 220px;
+  max-width: 320px;
+}
 
 /* =========================================================
-   MOBILE
+   MODAL DANH SÁCH CHI TIẾT
+========================================================= */
+
+.detail-modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(12, 29, 24, .48);
+  backdrop-filter: blur(3px);
+}
+
+.detail-modal-layer.hidden {
+  display: none;
+}
+
+.detail-modal-card {
+  width: min(1180px, 96vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 30px 80px rgba(10, 35, 28, .24);
+}
+
+.detail-modal-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid #e7ece9;
+}
+
+.detail-modal-head h2 {
+  margin: 4px 0;
+}
+
+.detail-modal-head p {
+  margin: 0;
+  color: #77847f;
+  font-size: .82rem;
+}
+
+.detail-modal-toolbar {
+  padding: 12px 22px;
+  border-bottom: 1px solid #eef1ef;
+}
+
+.detail-modal-toolbar input {
+  width: 100%;
+  height: 42px;
+  border: 1px solid #d7dfdc;
+  border-radius: 10px;
+  padding: 0 12px;
+  font: inherit;
+  outline: none;
+}
+
+.detail-modal-toolbar input:focus {
+  border-color: #4d7b6d;
+  box-shadow: 0 0 0 3px rgba(77, 123, 109, .11);
+}
+
+.detail-table-wrap {
+  overflow: auto;
+  padding: 0 22px 22px;
+}
+
+.drilldown-table {
+  min-width: 1450px;
+}
+
+.drilldown-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8faf9;
+}
+
+.detail-address-cell {
+  min-width: 230px;
+  max-width: 320px;
+}
+
+/* =========================================================
+   FORM ĐỊA CHỈ
+========================================================= */
+
+#provinceHelp {
+  color: #7b8883;
+  line-height: 1.4;
+}
+
+#personProvince:disabled,
+#personWard:disabled {
+  cursor: wait;
+  opacity: .75;
+}
+
+/* =========================================================
+   RESPONSIVE
 ========================================================= */
 
 @media (max-width: 760px) {
-
   .paired-summary-table {
-    min-width: 650px;
+    min-width: 700px;
   }
 
-}
+  .detail-modal-layer {
+    padding: 10px;
+  }
 
+  .detail-modal-card {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 15px;
+  }
+
+  .detail-modal-head,
+  .detail-modal-toolbar,
+  .detail-table-wrap {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
 
 /* =========================================================
    PRINT
 ========================================================= */
 
 @media print {
+  .detail-modal-layer {
+    display: none !important;
+  }
 
   .paired-summary-table {
     width: 100%;
@@ -92,5 +257,4 @@
   .report-summary-panel {
     break-inside: avoid;
   }
-
 }

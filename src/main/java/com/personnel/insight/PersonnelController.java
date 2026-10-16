@@ -10,19 +10,35 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/api")
 public class PersonnelController {
 
+    private static final String GEO_API_BASE = "https://provinces.open-api.vn/api/v2";
+
     private final JdbcTemplate db;
     private final ObjectMapper mapper;
 
+    private final HttpClient geoClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(8))
+            .build();
+
+    private volatile List<Map<String, Object>> provinceCache;
+    private final Map<String, List<Map<String, Object>>> wardCache = new ConcurrentHashMap<>();
+
     /*
-     * Các trường được phép lưu trong hồ sơ.
-     * residence = Nơi ở hiện nay (xã/phường)
+     * Hồ sơ vẫn được lưu trong cột payload JSON của bảng personnel_records.
+     * Không cần ALTER TABLE khi bổ sung các trường bên dưới.
      */
     private static final Set<String> FIELDS = Set.of(
             "id",
@@ -41,7 +57,16 @@ public class PersonnelController {
             "religion",
             "organization",
             "family",
+
+            "provinceCode",
+            "province",
+            "wardCode",
             "residence",
+            "addressDetail",
+
+            "healthStatus",
+            "healthNote",
+
             "children",
             "years",
             "salary",
@@ -54,9 +79,6 @@ public class PersonnelController {
         this.mapper = mapper;
     }
 
-    /*
-     * CSRF
-     */
     @GetMapping("/csrf")
     public Map<String, String> csrf(
             org.springframework.security.web.csrf.CsrfToken token
@@ -67,9 +89,6 @@ public class PersonnelController {
         );
     }
 
-    /*
-     * Thông tin người đăng nhập
-     */
     @GetMapping("/me")
     public Map<String, Object> me(
             org.springframework.security.core.Authentication auth
@@ -80,31 +99,22 @@ public class PersonnelController {
         );
     }
 
-    /*
-     * Lấy toàn bộ hồ sơ
-     */
     @GetMapping("/people")
     public List<Map<String, Object>> all() {
-
         return db.query(
                 "SELECT payload FROM personnel_records ORDER BY name, code",
                 (rs, row) -> parse(rs.getString(1))
         );
     }
 
-    /*
-     * Thêm hồ sơ
-     */
     @PostMapping("/people")
     @Transactional
     public Map<String, Object> add(
             @RequestBody Map<String, Object> item
     ) {
-
         Map<String, Object> p = validate(item);
 
         try {
-
             db.update(
                     """
                     INSERT INTO personnel_records(
@@ -122,9 +132,7 @@ public class PersonnelController {
                     p.get("dob"),
                     stringify(p)
             );
-
         } catch (DuplicateKeyException e) {
-
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Mã nhân sự đã tồn tại"
@@ -134,16 +142,12 @@ public class PersonnelController {
         return p;
     }
 
-    /*
-     * Cập nhật hồ sơ
-     */
     @PutMapping("/people/{id}")
     @Transactional
     public Map<String, Object> update(
             @PathVariable String id,
             @RequestBody Map<String, Object> item
     ) {
-
         Map<String, Object> p = validate(item);
 
         if (!id.equals(p.get("id"))) {
@@ -151,7 +155,6 @@ public class PersonnelController {
         }
 
         try {
-
             int n = db.update(
                     """
                     UPDATE personnel_records
@@ -174,9 +177,7 @@ public class PersonnelController {
                         "Không tìm thấy hồ sơ"
                 );
             }
-
         } catch (DuplicateKeyException e) {
-
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Mã nhân sự đã tồn tại"
@@ -186,15 +187,11 @@ public class PersonnelController {
         return p;
     }
 
-    /*
-     * Xóa một hồ sơ
-     */
     @DeleteMapping("/people/{id}")
     @Transactional
     public Map<String, Object> delete(
             @PathVariable String id
     ) {
-
         int n = db.update(
                 "DELETE FROM personnel_records WHERE id = ?",
                 id
@@ -206,31 +203,23 @@ public class PersonnelController {
             );
         }
 
-        return Map.of(
-                "success", true
-        );
+        return Map.of("success", true);
     }
 
-    /*
-     * Nhập hàng loạt từ JSON
-     */
     @PutMapping("/people/bulk")
     @Transactional
     public Map<String, Object> bulk(
             @RequestBody List<Map<String, Object>> records
     ) {
-
         if (records.size() > 500) {
             throw bad("Tối đa 500 hồ sơ mỗi lần nhập");
         }
 
         List<Map<String, Object>> validated = new ArrayList<>();
-
         Set<String> codes = new HashSet<>();
         Set<String> ids = new HashSet<>();
 
         for (Map<String, Object> input : records) {
-
             Map<String, Object> p = validate(input);
 
             String code = ((String) p.get("code"))
@@ -238,25 +227,19 @@ public class PersonnelController {
 
             if (!codes.add(code)
                     || !ids.add((String) p.get("id"))) {
-
-                throw bad(
-                        "Mã nhân sự hoặc ID bị trùng"
-                );
+                throw bad("Mã nhân sự hoặc ID bị trùng");
             }
 
             validated.add(p);
         }
 
         /*
-         * Giữ nguyên cơ chế hiện tại:
-         * nhập JSON hàng loạt sẽ thay thế toàn bộ dữ liệu.
+         * Giữ nguyên hành vi hiện tại:
+         * nhập JSON hàng loạt thay thế toàn bộ dữ liệu.
          */
-        db.update(
-                "DELETE FROM personnel_records"
-        );
+        db.update("DELETE FROM personnel_records");
 
         for (Map<String, Object> p : validated) {
-
             db.update(
                     """
                     INSERT INTO personnel_records(
@@ -283,25 +266,96 @@ public class PersonnelController {
     }
 
     /*
-     * Kiểm tra và chuẩn hóa dữ liệu hồ sơ
+     * Danh mục hành chính Việt Nam sau sắp xếp 2025.
+     * Frontend chỉ gọi API của chính ứng dụng, vì vậy CSP hiện tại không cần nới.
      */
+    @GetMapping("/geo/provinces")
+    public List<Map<String, Object>> provinces() {
+        List<Map<String, Object>> cached = provinceCache;
+
+        if (cached != null) {
+            return cached;
+        }
+
+        synchronized (this) {
+            if (provinceCache == null) {
+                provinceCache = fetchGeoList(
+                        GEO_API_BASE + "/p/"
+                );
+            }
+            return provinceCache;
+        }
+    }
+
+    @GetMapping("/geo/provinces/{code}/wards")
+    public List<Map<String, Object>> wards(
+            @PathVariable String code
+    ) {
+        if (code == null || !code.matches("\\d{1,3}")) {
+            throw bad("Mã tỉnh/thành không hợp lệ");
+        }
+
+        List<Map<String, Object>> cached =
+                wardCache.get(code);
+
+        if (cached != null) {
+            return cached;
+        }
+
+        Map<String, Object> province = fetchGeoObject(
+                GEO_API_BASE + "/p/" + code + "?depth=2"
+        );
+
+        Object rawWards = province.get("wards");
+
+        if (!(rawWards instanceof List<?> list)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Nguồn danh mục hành chính không trả về danh sách xã/phường"
+            );
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> raw) {
+                Map<String, Object> compact =
+                        compactGeoItem(raw);
+
+                if (!compact.isEmpty()) {
+                    result.add(compact);
+                }
+            }
+        }
+
+        result.sort(
+                Comparator.comparing(
+                        item -> String.valueOf(item.get("name")),
+                        java.text.Collator.getInstance(
+                                new Locale("vi", "VN")
+                        )
+                )
+        );
+
+        List<Map<String, Object>> immutable =
+                List.copyOf(result);
+
+        wardCache.put(code, immutable);
+
+        return immutable;
+    }
+
     private Map<String, Object> validate(
             Map<String, Object> obj
     ) {
-
         Map<String, Object> p =
                 new LinkedHashMap<>();
 
-        /*
-         * Chỉ lấy các field nằm trong danh sách FIELDS.
-         */
         for (String key : FIELDS) {
-
             Object val = obj.get(key);
 
             if (val instanceof Map
                     || val instanceof List) {
-
                 throw bad(
                         "Sai định dạng trường " + key
                 );
@@ -313,28 +367,18 @@ public class PersonnelController {
             );
         }
 
-        /*
-         * Các trường bắt buộc
-         */
         for (String key : List.of(
                 "id",
                 "code",
                 "name",
                 "dob"
         )) {
-
             if (!(p.get(key) instanceof String s)
                     || s.isBlank()) {
-
-                throw bad(
-                        "Thiếu " + key
-                );
+                throw bad("Thiếu " + key);
             }
         }
 
-        /*
-         * Chuẩn hóa các trường văn bản.
-         */
         for (String key : List.of(
                 "id",
                 "code",
@@ -352,10 +396,18 @@ public class PersonnelController {
                 "religion",
                 "organization",
                 "family",
+
+                "provinceCode",
+                "province",
+                "wardCode",
                 "residence",
+                "addressDetail",
+
+                "healthStatus",
+                "healthNote",
+
                 "note"
         )) {
-
             String val =
                     String.valueOf(
                             p.get(key)
@@ -363,47 +415,50 @@ public class PersonnelController {
 
             int max;
 
-            if (key.equals("note")) {
-
+            if (key.equals("note")
+                    || key.equals("healthNote")) {
                 max = 300;
-
+            } else if (key.equals("addressDetail")) {
+                max = 150;
             } else if (
                     key.equals("name")
                             || key.equals("position")
                             || key.equals("id")
             ) {
-
                 max = 100;
-
-            } else if (
-                    key.equals("code")
-            ) {
-
+            } else if (key.equals("code")) {
                 max = 30;
-
             } else {
-
                 max = 70;
             }
 
             if (val.length() > max) {
-
                 throw bad(
                         "Giá trị quá dài: " + key
                 );
             }
 
-            p.put(
-                    key,
-                    val
+            p.put(key, val);
+        }
+
+        String healthStatus =
+                String.valueOf(
+                        p.get("healthStatus")
+                ).trim();
+
+        if (!healthStatus.isBlank()
+                && !healthStatus.equals("Bình thường")
+                && !healthStatus.equals("Không bình thường")) {
+            throw bad(
+                    "Tình trạng sức khỏe không hợp lệ"
             );
         }
 
-        /*
-         * Kiểm tra ngày sinh
-         */
-        try {
+        if (!healthStatus.equals("Không bình thường")) {
+            p.put("healthNote", "");
+        }
 
+        try {
             LocalDate date =
                     LocalDate.parse(
                             (String) p.get("dob")
@@ -416,33 +471,25 @@ public class PersonnelController {
                                     .minusYears(110)
                     )
             ) {
-
                 throw bad(
                         "Ngày sinh không hợp lệ"
                 );
             }
-
         } catch (
                 java.time.format.DateTimeParseException e
         ) {
-
             throw bad(
                     "Ngày sinh không hợp lệ"
             );
         }
 
-        /*
-         * Kiểm tra các trường số
-         */
         for (String key : List.of(
                 "children",
                 "years",
                 "salary",
                 "allowance"
         )) {
-
             try {
-
                 long v = Long.parseLong(
                         p.get(key).toString()
                 );
@@ -450,37 +497,23 @@ public class PersonnelController {
                 long max;
 
                 if (key.equals("children")) {
-
                     max = 20;
-
-                } else if (
-                        key.equals("years")
-                ) {
-
+                } else if (key.equals("years")) {
                     max = 65;
-
                 } else {
-
                     max = 1_000_000_000L;
                 }
 
                 if (v < 0 || v > max) {
-
                     throw bad(
                             "Giá trị không hợp lệ: "
                                     + key
                     );
                 }
 
-                p.put(
-                        key,
-                        v
-                );
+                p.put(key, v);
 
-            } catch (
-                    NumberFormatException e
-            ) {
-
+            } catch (NumberFormatException e) {
                 throw bad(
                         "Giá trị phải là số nguyên: "
                                 + key
@@ -491,15 +524,59 @@ public class PersonnelController {
         return p;
     }
 
-    /*
-     * Đọc payload JSON từ database
-     */
-    private Map<String, Object> parse(
-            String json
+    private List<Map<String, Object>> fetchGeoList(
+            String url
     ) {
+        String json = fetchGeoBody(url);
 
         try {
+            List<Map<String, Object>> raw =
+                    mapper.readValue(
+                            json,
+                            new TypeReference<
+                                    List<Map<String, Object>>
+                                    >() {
+                            }
+                    );
 
+            List<Map<String, Object>> result =
+                    new ArrayList<>();
+
+            for (Map<String, Object> item : raw) {
+                Map<String, Object> compact =
+                        compactGeoItem(item);
+
+                if (!compact.isEmpty()) {
+                    result.add(compact);
+                }
+            }
+
+            result.sort(
+                    Comparator.comparing(
+                            item -> String.valueOf(item.get("name")),
+                            java.text.Collator.getInstance(
+                                    new Locale("vi", "VN")
+                            )
+                    )
+            );
+
+            return List.copyOf(result);
+
+        } catch (JsonProcessingException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Không đọc được danh mục tỉnh/thành",
+                    e
+            );
+        }
+    }
+
+    private Map<String, Object> fetchGeoObject(
+            String url
+    ) {
+        String json = fetchGeoBody(url);
+
+        try {
             return mapper.readValue(
                     json,
                     new TypeReference<
@@ -507,11 +584,96 @@ public class PersonnelController {
                             >() {
                     }
             );
+        } catch (JsonProcessingException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Không đọc được danh mục xã/phường",
+                    e
+            );
+        }
+    }
+
+    private String fetchGeoBody(
+            String url
+    ) {
+        HttpRequest request =
+                HttpRequest.newBuilder(
+                                URI.create(url)
+                        )
+                        .timeout(
+                                Duration.ofSeconds(12)
+                        )
+                        .header(
+                                "User-Agent",
+                                "PersonnelInsight/1.0"
+                        )
+                        .GET()
+                        .build();
+
+        try {
+            HttpResponse<String> response =
+                    geoClient.send(
+                            request,
+                            HttpResponse.BodyHandlers.ofString()
+                    );
+
+            if (response.statusCode() != 200) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_GATEWAY,
+                        "Không tải được danh mục hành chính (HTTP "
+                                + response.statusCode()
+                                + ")"
+                );
+            }
+
+            return response.body();
 
         } catch (
-                JsonProcessingException e
+                IOException
+                | InterruptedException e
         ) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
 
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Không kết nối được nguồn danh mục hành chính",
+                    e
+            );
+        }
+    }
+
+    private Map<String, Object> compactGeoItem(
+            Map<?, ?> raw
+    ) {
+        Object code = raw.get("code");
+        Object name = raw.get("name");
+
+        if (code == null || name == null) {
+            return Map.of();
+        }
+
+        return Map.of(
+                "code",
+                String.valueOf(code),
+                "name",
+                String.valueOf(name).trim()
+        );
+    }
+
+    private Map<String, Object> parse(
+            String json
+    ) {
+        try {
+            return mapper.readValue(
+                    json,
+                    new TypeReference<
+                            Map<String, Object>
+                            >() {
+                    }
+            );
+        } catch (JsonProcessingException e) {
             throw new IllegalStateException(
                     "Dữ liệu lưu trữ không đọc được",
                     e
@@ -519,36 +681,23 @@ public class PersonnelController {
         }
     }
 
-    /*
-     * Chuyển hồ sơ thành JSON trước khi lưu DB
-     */
     private String stringify(
             Object obj
     ) {
-
         try {
-
             return mapper.writeValueAsString(
                     obj
             );
-
-        } catch (
-                JsonProcessingException e
-        ) {
-
+        } catch (JsonProcessingException e) {
             throw bad(
                     "Dữ liệu không hợp lệ"
             );
         }
     }
 
-    /*
-     * Trả lỗi HTTP 400
-     */
     private ResponseStatusException bad(
             String reason
     ) {
-
         return new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
                 reason
