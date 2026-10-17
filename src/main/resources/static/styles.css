@@ -124,15 +124,20 @@ strong {
 }
 
 .brand strong {
-    font-size: 14px;
-    font-weight: 800;
-    letter-spacing: .35px;
     display: block;
+    white-space: nowrap;
+
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.15;
+
+    letter-spacing: -0.25px;
+    color: #243c35;
 }
 
-.brand em {
+.brand strong em {
+    color: #b58a3f;
     font-style: normal;
-    color: #b18b49;
 }
 
 .brand small {
